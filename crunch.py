@@ -65,7 +65,6 @@ class SearchState:
         self.after_card = CardData(None, None, None)
 
     def new_before_card(self, card):
-        self.reset()
         self.before_card = card
 
     def new_last_card(self, card):
@@ -73,6 +72,26 @@ class SearchState:
 
     def new_after_card(self, card):
         self.after_card = card
+
+
+def crunch_lesser_name(state, card_data):
+    state.reset()
+    state.new_before_card(card_data)
+    return state
+
+
+def crunch_after_name(state, card_data):
+    state.new_after_card(card_data)
+    return state
+
+
+def crunch_color_gap(state, card_data):
+    if len(card_data.colors) >= 2 and len(state.last_card.colors) >= 2:
+        return state
+    state.reset()
+    state.new_before_card(state.last_card)
+    state.new_after_card(card_data)
+    return state
 
 
 def crunch(cards, card_to_ask):
@@ -101,16 +120,18 @@ def crunch(cards, card_to_ask):
         colors = c.get("colors", [])
 
         card_data = CardData(name, collector_number, colors)
+        logger.debug(f"On {card_data}")
 
         if name.startswith(search_name):
             yield CrunchMatch(card_data)
+            continue
 
         if name < search_name:
             logger.debug(f"{name} < {search_name}")
-            state.new_before_card(card_data)
+            state = crunch_lesser_name(state, card_data)
         elif name > search_name and state.before_card.name is not None:
             logger.debug(f"{name} > {search_name}")
-            state.new_after_card(card_data)
+            state = crunch_after_name(state, card_data)
         # Special case: Colors change, but you could appear between, eg Zell and Balamb T-rexaur
         elif (
             name > search_name
@@ -118,13 +139,14 @@ def crunch(cards, card_to_ask):
             and state.last_card.name > name
             and state.last_card.colors != colors
         ):
-            # More conditions, multicolor is all together
-            if len(colors) >= 2 and len(state.last_card.colors) >= 2:
-                continue
-            state.new_after_card(card_data)
-            state.new_before_card(state.last_card)
+            state = crunch_color_gap(state, card_data)
 
-        if state.after_card.name and state.before_card.name:
+        if (
+            state.after_card
+            and state.before_card
+            and state.after_card.name
+            and state.before_card.name
+        ):
             slots = (
                 state.after_card.collector_number
                 - state.before_card.collector_number
