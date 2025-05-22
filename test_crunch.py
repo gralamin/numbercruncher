@@ -85,3 +85,14 @@ class TestNumCrunch(unittest.TestCase):
             "Ashe",
         ):
             self.fail("No expected result")
+
+    def test_color_change_nogap(self):
+        for result in crunch(
+            [
+                TEST_CARDS["zack"],
+                TEST_CARDS["astrologiansplanisphere"],
+                TEST_CARDS["dragoonswyvern"],
+            ],
+            "Ashe",
+        ):
+            self.fail("No expected result")
